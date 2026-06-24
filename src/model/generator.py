@@ -1,3 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from google.genai.errors import ServerError
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -22,14 +25,24 @@ class WordlistGenerator:
         self._groq = ChatGroq(
             model=self._config.groq.model_name,
             api_key=self._config.groq.api_key,
-        ).with_structured_output(WordlistResponse)
+        ).with_structured_output(WordlistResponse, method="json_schema", strict=True)
+
+    def generate_multiple(
+        self, url: str, html_content: str, temperature: float = 1.0, n: int = 5
+    ) -> list[WordlistResponse]:
+        with ThreadPoolExecutor(max_workers=n) as executor:
+            futures = [
+                executor.submit(self.generate, url, html_content, temperature)
+                for _ in range(n)
+            ]
+            return [f.result() for f in as_completed(futures)]
 
     def generate(
         self, url: str, html_content: str, temperature: float = 1.0
     ) -> WordlistResponse:
         try:
             return self._generate_gemini(url, html_content, temperature)
-        except ChatGoogleGenerativeAIError as e:
+        except (ChatGoogleGenerativeAIError, ServerError) as e:
             log.warning(
                 f"Google Gemini generation failed, falling back to Groq. Reason: {e}"
             )

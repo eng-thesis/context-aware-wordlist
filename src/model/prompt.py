@@ -18,7 +18,7 @@ Avoid generic endpoints that would appear in any standard wordlist (like /admin,
 
 Use the URL to understand the app's structure and base path conventions.
 
-Be exhaustive within the context of this application (at least 500 endpoints). Coverage of domain-specific paths is the goal.
+Be exhaustive but selective — quality over quantity. Focus on endpoints most likely to exist in this specific application. Aim for 100-200 highly relevant endpoints rather than generic padding.
 
 Return a JSON object with an "endpoints" key. Each endpoint should be a relative path starting with /.
 No explanation, no markdown, no commentary — only valid JSON.
