@@ -1,36 +1,56 @@
-from google import genai
-from google.genai import types
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_genai.chat_models import ChatGoogleGenerativeAIError
+from langchain_groq import ChatGroq
 
+from common.logging import get_logger
 from model.config import GeneratorConfig
-from model.exceptions import EmptyResponseTextError
 from model.models import WordlistResponse
 from model.prompt import GENERATOR_PROMPT
+
+log = get_logger(__name__)
 
 
 class WordlistGenerator:
     def __init__(self, config: GeneratorConfig) -> None:
         self._config = config
-        self._client = genai.Client(
-            api_key=self._config.api_key.get_secret_value(),
-        )
+        self._gemini = ChatGoogleGenerativeAI(
+            model=self._config.gemini.model_name,
+            google_api_key=self._config.gemini.api_key,
+        ).with_structured_output(WordlistResponse)
+        self._groq = ChatGroq(
+            model=self._config.groq.model_name,
+            api_key=self._config.groq.api_key,
+        ).with_structured_output(WordlistResponse)
 
     def generate(
-        self, url: str, html_content: str, temperature: float = 0.0
+        self, url: str, html_content: str, temperature: float = 1.0
     ) -> WordlistResponse:
-        response = self._client.models.generate_content(
-            model=self._config.model_name,
-            contents=types.Content(
-                role="user",
-                parts=[types.Part(text=f"URL: {url}\n\nContent:\n{html_content}")],
-            ),
-            config=types.GenerateContentConfig(
-                temperature=temperature,
-                system_instruction=GENERATOR_PROMPT,
-                response_mime_type="application/json",
-                response_schema=WordlistResponse,
-            ),
+        try:
+            return self._generate_gemini(url, html_content, temperature)
+        except ChatGoogleGenerativeAIError as e:
+            log.warning(
+                f"Google Gemini generation failed, falling back to Groq. Reason: {e}"
+            )
+            return self._generate_groq(url, html_content, temperature)
+
+    def _invoke(
+        self, llm: Runnable, url: str, html_content: str, temperature: float
+    ) -> WordlistResponse:
+        return llm.bind(temperature=temperature).invoke(
+            [
+                SystemMessage(content=GENERATOR_PROMPT),
+                HumanMessage(content=f"URL: {url}\n\nContent:\n{html_content}"),
+            ]
         )
 
-        if response.text is None:
-            raise EmptyResponseTextError("Model did not generate any enpoints")
-        return WordlistResponse.model_validate_json(response.text)
+    def _generate_gemini(
+        self, url: str, html_content: str, temperature: float = 1.0
+    ) -> WordlistResponse:
+        return self._invoke(self._gemini, url, html_content, temperature)
+
+    def _generate_groq(
+        self, url: str, html_content: str, temperature: float = 1.0
+    ) -> WordlistResponse:
+        return self._invoke(self._groq, url, html_content, temperature)

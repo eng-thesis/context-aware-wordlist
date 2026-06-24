@@ -1,4 +1,4 @@
-from pydantic import Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -7,9 +7,19 @@ from pydantic_settings import (
 )
 
 
+class GeminiConfig(BaseModel):
+    api_key: SecretStr = Field(description="Gemini API key")
+    model_name: str = Field(description="Gemini model name")
+
+
+class GroqConfig(BaseModel):
+    api_key: SecretStr = Field(description="Groq API key")
+    model_name: str = Field(description="Groq model name")
+
+
 class GeneratorConfig(BaseSettings):
-    api_key: SecretStr = Field(description="Your Gemini API KEY")
-    model_name: str = Field(description="Name of the model you want to use")
+    gemini: GeminiConfig
+    groq: GroqConfig
 
     model_config = SettingsConfigDict(yaml_file="config.yaml")
 
