@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import Field
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -7,19 +7,8 @@ from pydantic_settings import (
 )
 
 
-class GeminiConfig(BaseModel):
-    api_key: SecretStr = Field(description="Gemini API key")
-    model_name: str = Field(description="Gemini model name")
-
-
-class GroqConfig(BaseModel):
-    api_key: SecretStr = Field(description="Groq API key")
-    model_name: str = Field(description="Groq model name")
-
-
-class GeneratorConfig(BaseSettings):
-    gemini: GeminiConfig
-    groq: GroqConfig
+class WorkerConfig(BaseSettings):
+    broker_url: str = Field(description="RabbitMQ broker URL")
 
     model_config = SettingsConfigDict(yaml_file="config.yaml", extra="ignore")
 
