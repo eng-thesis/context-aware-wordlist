@@ -17,8 +17,8 @@ RUN uv sync --frozen --no-dev
 
 FROM python:3.14-slim AS final
 
-RUN groupadd --gid 1001 appgroup && \
-    useradd --uid 1001 --gid appgroup --no-create-home appuser
+RUN groupadd -r appgroup && \
+    useradd -r -g appgroup appuser
 
 WORKDIR /app
 
